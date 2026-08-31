@@ -2136,6 +2136,112 @@ window.addEventListener('beforeunload', function(){ save(true); });
     renderA11();
     renderA11();
 
+        // ============================================================
+//  3. 读取数据函数：从 GitHub 仓库读取 data.json
+// ============================================================
+async function readData() {
+    try {
+        // 如果令牌不存在，直接返回 null
+        if (!GITHUB_TOKEN || GITHUB_TOKEN === '你的_个人访问令牌') {
+            console.warn('⚠️ 请先设置 GitHub 令牌');
+            return null;
+        }
+        // 构造 API URL
+        const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
+        // 发送 GET 请求
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        // 如果文件不存在（404），返回 null
+        if (response.status === 404) {
+            console.log('📝 云端暂无数据文件，将创建新文件');
+            return null;
+        }
+        // 如果请求失败，抛出错误
+        if (!response.ok) {
+            throw new Error(`读取失败：HTTP ${response.status}`);
+        }
+        // 解析返回的数据
+        const data = await response.json();
+        // GitHub 返回的 content 是 Base64 编码的，需要解码
+        // 使用 decodeURIComponent + escape 处理中文
+        const content = decodeURIComponent(escape(atob(data.content)));
+        // 解析 JSON
+        return JSON.parse(content);
+    } catch (error) {
+        console.error('❌ 读取数据失败:', error.message);
+        return null;
+    }
+}
+
+        // ============================================================
+//  4. 写入数据函数：将数据保存到 GitHub 仓库的 data.json
+// ============================================================
+async function writeData(data) {
+    try {
+        // 如果令牌不存在，直接返回 false
+        if (!GITHUB_TOKEN || GITHUB_TOKEN === '你的_个人访问令牌') {
+            console.warn('⚠️ 请先设置 GitHub 令牌');
+            return false;
+        }
+        const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
+        
+        // ---------- 第一步：获取当前文件的 SHA（更新时需要） ----------
+        let sha = null;
+        const getResponse = await fetch(url, {
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        if (getResponse.ok) {
+            const fileInfo = await getResponse.json();
+            sha = fileInfo.sha;  // 如果文件存在，获取它的 SHA
+            console.log('📄 文件已存在，SHA:', sha);
+        } else if (getResponse.status !== 404) {
+            // 如果不是 404 错误，说明请求本身有问题
+            throw new Error(`获取文件信息失败：HTTP ${getResponse.status}`);
+        } else {
+            console.log('📝 文件不存在，将创建新文件');
+        }
+
+        // ---------- 第二步：准备要写入的内容 ----------
+        // 将数据对象转为格式化的 JSON 字符串，然后转为 Base64 编码
+        // 使用 unescape + encodeURIComponent 处理中文
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+        const payload = {
+            message: `更新数据 - ${new Date().toLocaleString()}`,  // 提交信息
+            content: content,
+            sha: sha || undefined  // 如果是新文件，sha 可以为空；如果是更新，必须提供 sha
+        };
+
+        // ---------- 第三步：发送 PUT 请求 ----------
+        const putResponse = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        // 检查请求是否成功
+        if (!putResponse.ok) {
+            const err = await putResponse.json();
+            throw new Error(`写入失败：HTTP ${putResponse.status} - ${err.message || '未知错误'}`);
+        }
+        console.log('✅ 数据已保存到云端');
+        return true;
+    } catch (error) {
+        console.error('❌ 写入数据失败:', error.message);
+        return false;
+    }
+}
+  
     // ============================================================
     //  3. GitHub API 操作函数（不要修改）
     // ============================================================
