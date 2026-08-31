@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>个人办公工作台</title>
+<title>工作台</title>
 <style>
   :root{
     --teal:#0d9488; --teal-d:#0f766e; --teal-l:#ccfbf1; --teal-xl:#f0fdfa;
@@ -355,8 +355,7 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h12"/></svg>
       </div>
       <div>
-        <h1>个人办公工作台</h1>
-        <div class="sub">未完成项目 · 已完成项目 · 知识点速记 · 素材参考 · 本地离线可用</div>
+        <h1>工作台</h1>
       </div>
     </div>
     <div class="hdr-actions">
@@ -403,7 +402,7 @@
       <span class="save-dot"></span><span id="saveStatus">已自动保存</span><br/>
       <span id="storageLoc">存储：浏览器内存</span><br/>
       共 <b id="cntTotal">0</b> 条 · 建议 20 条导出一次<br/>
-      <span style="opacity:.8">版本 V0831-04 · 分享链接全空（数据仅自己可见）</span>
+      <span style="opacity:.8">版本 V0831-05 · 品牌名更新</span>
     </div>
   </nav>
 
@@ -652,7 +651,7 @@
       <div id="workGroups"></div>
     </div>
 
-    <div class="foot">个人办公工作台 · 数据仅存于本设备浏览器，记得定期导出备份</div>
+    <div class="foot">工作台 · 数据仅存于本设备浏览器，记得定期导出备份</div>
   </section>
 </main>
 
@@ -1971,7 +1970,7 @@ function exportData(){
   var blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
-  a.href = url; a.download = '办公工作台备份_'+todayStr()+'.json';
+  a.href = url; a.download = '工作台备份_'+todayStr()+'.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
   state.meta.lastExportNudgeTotal = totalCount();
