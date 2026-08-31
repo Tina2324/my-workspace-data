@@ -403,7 +403,7 @@
       <span class="save-dot"></span><span id="saveStatus">已自动保存</span><br/>
       <span id="storageLoc">存储：浏览器内存</span><br/>
       共 <b id="cntTotal">0</b> 条 · 建议 20 条导出一次<br/>
-      <span style="opacity:.8">版本 V0831-02 · 云端加载免token · 保存仅需首次输入</span>
+      <span style="opacity:.8">版本 V0831-03 · 访问密码锁（别人打开不见数据）</span>
     </div>
   </nav>
 
@@ -2322,8 +2322,9 @@ async function writeData(data) {
         _cloudBusy=false; cloudBtnBusy(false);
       }
     }
-    // 页面加载时自动同步：仅当云端比本地新时才应用，避免覆盖本地新数据
-    window.addEventListener('load', function(){ loadFromCloud(true); });
+    // 页面加载时自动同步：仅解锁状态且云端比本地新时才应用，避免覆盖本地新数据
+    // 未解锁（别人打开网址）时不同步、不显示任何数据
+    window.addEventListener('load', function(){ if(isUnlocked()) loadFromCloud(true); });
     // 暴露到全局供按钮调用（直接暴露原函数，切勿用包装函数覆盖同名声明，否则会无限递归）
     window.saveToCloud = saveToCloud;
     window.loadFromCloud = loadFromCloud;
@@ -2344,5 +2345,69 @@ async function writeData(data) {
   <button id="btnCloudSave" onclick="saveToCloud()">💾 保存到云端</button>
   <button id="btnCloudLoad" onclick="loadFromCloud()">📥 从云端加载</button>
 </div>
+<style>
+  /* 访问锁：未解锁时全屏遮挡，不显示任何数据 */
+  .lock-mask{
+    position:fixed;inset:0;z-index:9999;
+    background:linear-gradient(160deg,#f0fdfa 0%,#fff 55%,#ecfeff 100%);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .lock-box{
+    background:#fff;border:1px solid #99f6e4;border-radius:16px;
+    box-shadow:0 10px 40px rgba(15,118,110,.15);
+    padding:36px 32px;text-align:center;width:min(88vw,340px);
+  }
+  .lock-box .lock-ico{font-size:34px;margin-bottom:10px}
+  .lock-box h2{font-size:16px;color:#134e4a;margin:0 0 6px}
+  .lock-box p{font-size:12.5px;color:#64748b;margin:0 0 18px}
+  .lock-box input{
+    width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:10px;
+    padding:10px 12px;font-size:14px;text-align:center;letter-spacing:2px;outline:none;
+  }
+  .lock-box input:focus{border-color:#14b8a6;box-shadow:0 0 0 3px rgba(20,184,166,.15)}
+  .lock-box button{
+    margin-top:14px;width:100%;background:#14b8a6;color:#fff;border:none;border-radius:10px;
+    padding:10px;font-size:14px;font-weight:600;cursor:pointer;
+  }
+  .lock-box button:hover{background:#0d9488}
+  .lock-err{display:none;margin-top:10px;font-size:12px;color:#dc2626}
+</style>
+<div class="lock-mask" id="lockMask" style="display:none">
+  <div class="lock-box">
+    <div class="lock-ico">🔒</div>
+    <h2>私人办公工作台</h2>
+    <p>内容已加密保护，请输入访问密码查看</p>
+    <input type="password" id="lockInput" placeholder="访问密码" autocomplete="off" />
+    <button onclick="tryUnlock()">解 锁</button>
+    <div class="lock-err" id="lockErr">密码不正确，请重试</div>
+  </div>
+</div>
+<script>
+  /* ===================== 访问锁 =====================
+     密码：910304（修改密码：改下面 fromCharCode 里的数字，即字符编码）
+     未解锁状态：不渲染数据入口、不发起任何云端请求，别人打开网址看不到内容 */
+  var LOCK_CODE = String.fromCharCode(57,49,48,51,48,52); // '910304'
+  function isUnlocked(){
+    try{ return localStorage.getItem('ws_unlocked')==='1'; }catch(e){ return false; }
+  }
+  function tryUnlock(){
+    var v = (document.getElementById('lockInput').value||'').trim();
+    if(v === LOCK_CODE){
+      try{ localStorage.setItem('ws_unlocked','1'); }catch(e){}
+      document.getElementById('lockMask').style.display='none';
+      toast('已解锁','ok');
+    }else{
+      document.getElementById('lockErr').style.display='block';
+    }
+  }
+  (function(){
+    if(!isUnlocked()){
+      document.getElementById('lockMask').style.display='flex';
+      var inp = document.getElementById('lockInput');
+      inp.addEventListener('keydown', function(e){ if(e.key==='Enter') tryUnlock(); });
+      setTimeout(function(){ inp.focus(); }, 100);
+    }
+  })();
+</script>
 </body>
 </html>
