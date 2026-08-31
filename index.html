@@ -403,7 +403,7 @@
       <span class="save-dot"></span><span id="saveStatus">已自动保存</span><br/>
       <span id="storageLoc">存储：浏览器内存</span><br/>
       共 <b id="cntTotal">0</b> 条 · 建议 20 条导出一次<br/>
-      <span style="opacity:.8">版本 V0831-03 · 访问密码锁（别人打开不见数据）</span>
+      <span style="opacity:.8">版本 V0831-04 · 分享链接全空（数据仅自己可见）</span>
     </div>
   </nav>
 
@@ -903,46 +903,15 @@ function sampleImgSVG(label, c1, c2){
   return 'data:image/svg+xml;charset=utf8,' + encodeURIComponent(svg.replace('%23','#'));
 }
 function seed(){
-  var p1 = uid(), p2 = uid();
-  var y = addDaysStr(todayStr(),-1), t = todayStr(), tm = tomorrowStr(), f = addDaysStr(todayStr(),5), d10 = addDaysStr(todayStr(),10), d20 = addDaysStr(todayStr(),20);
+  /* 空数据初始化：新访客（包括通过分享网址打开的人）看到全空工作台，不含任何示例数据 */
   var d = {
     version:1,
-    todos:[
-      { id:uid(), title:'整理本周周报数据并发出', progress:'文案进行中', deadline:y, startDate:addDaysStr(todayStr(),-3), done:false, projectId:p1, deferCount:1, createdAt:Date.now(), isSample:true, note:'数据从销售后台导出，注意核对上周补录数据。', reqText:'数据表：https://docs.qq.com/sheet/DZQkbnRKYWlK\n周报模板：https://example.com/weekly-template' },
-      { id:uid(), title:'准备季度汇报材料', progress:'文案进行中', deadline:t, startDate:addDaysStr(todayStr(),-2), done:false, projectId:p1, deferCount:0, pinned:true, createdAt:Date.now(), isSample:true, note:'', reqText:'' },
-      { id:uid(), title:'整理上周会议纪要', progress:'已完成', deadline:t, done:true, completedAt:new Date().toISOString(), projectId:p2, deferCount:0, createdAt:Date.now()-86400000, isSample:true },
-      { id:uid(), title:'对接设计团队确认视觉稿', progress:'摄影拍摄中', deadline:tm, startDate:t, done:false, projectId:p2, deferCount:0, createdAt:Date.now(), isSample:true, note:'需带上下周反馈意见，确认主视觉方向。', reqText:'设计稿：https://figma.com/file/abc123/visual' },
-      { id:uid(), title:'下季度预算初稿', progress:'未开始', deadline:f, startDate:t, done:false, projectId:p1, deferCount:0, createdAt:Date.now(), isSample:true }
-    ],
-    notes:[
-      { id:uid(), content:'客户A 提到希望支持多端同步，下次需求评审要带上。', tags:['需求','客户A'], createdAt:Date.now(), isSample:true },
-      { id:uid(), content:'本地用 localStorage 存储，导出 JSON 备份，断网也能打开。', tags:['技术','备忘'], createdAt:Date.now(), isSample:true },
-      { id:uid(), content:'周会要点：交付节奏不变，风险项同步 PM 跟进。', tags:['周会'], createdAt:Date.now(), isSample:true }
-    ],
-    projects:[
-      { id:p1, name:'客户A 管理后台升级', status:'进行中', deliveryDate:d10, coordination:'需设计组周三前出图；后端接口周五联调。', summary:'整体进度正常，视觉稿待确认；注意预留测试时间。', createdAt:Date.now(), isSample:true },
-      { id:p2, name:'内部知识库搭建', status:'未开始', deliveryDate:d20, coordination:'需产品确认信息架构与权限模型。', summary:'待启动，先做信息架构调研。', createdAt:Date.now(), isSample:true }
-    ],
-    materials:[
-      { id:uid(), projectId:p1, title:'界面参考-仪表盘', tags:['设计参考','仪表盘'], type:'image', dataUrl:sampleImgSVG('Dashboard Ref','#0f766e','#14b8a6'), createdAt:Date.now(), isSample:true },
-      { id:uid(), projectId:p1, title:'配色方案', tags:['设计参考','配色'], type:'image', dataUrl:sampleImgSVG('Palette Ref','#0d9488','#5eead4'), createdAt:Date.now(), isSample:true }
-    ],
-    study:[
-      { id:uid(), title:'每天 30 分钟 Excel 数据透视表练习', status:'进行中',
-        content:'① 看教学视频 30 分钟\n② 跟练 2 个案例\n③ 整理笔记到速记模块',
-        contentItems:[{ id:uid(), text:'① 看教学视频 30 分钟', done:true },{ id:uid(), text:'② 跟练 2 个案例', done:false },{ id:uid(), text:'③ 整理笔记到速记模块', done:false }],
-        notes:'重点掌握切片器与计算字段，已练到第 3 章。', remark:'计划 2 周内完成入门篇', createdAt:Date.now(), isSample:true },
-      { id:uid(), title:'阅读《写给大家看的设计书》第 4 章', status:'未开始', notes:'', remark:'周末精读并做笔记', createdAt:Date.now(), isSample:true },
-      { id:uid(), title:'整理摄影构图技巧笔记', status:'已完成', notes:'三分法、引导线、框架构图已整理完毕。', remark:'', createdAt:Date.now()-3600000, isSample:true }
-    ],
-    works:[
-      { id:uid(), title:'品牌视觉提案-首页改版', category:'产品项目', desc:'面向客户 A 的官网改版视觉提案，包含首页与详情页两套方向。', createdAt:Date.now(), isSample:true,
-        images:[{ id:uid(), kind:'image', name:'首页方向A.svg', type:'image/svg+xml', size:1024, dataUrl:sampleImgSVG('Homepage Draft A','#0f766e','#14b8a6') },
-                { id:uid(), kind:'image', name:'详情页方向B.svg', type:'image/svg+xml', size:1024, dataUrl:sampleImgSVG('Detail Draft B','#0d9488','#5eead4') }],
-        videos:[],
-        docs:[{ id:uid(), kind:'doc', name:'proposal-notes.txt', type:'text/plain', size:120, dataUrl:'data:text/plain;base64,'+btoa('Proposal notes: 1) Brand teal palette. 2) Hero highlights. 3) Mobile first.') }],
-        srcFiles:[] }
-    ],
+    todos:[],
+    notes:[],
+    projects:[],
+    materials:[],
+    study:[],
+    works:[],
     meta:{ lastExportNudgeTotal:0, tags:{note:[],material:[]} }
   };
   return d;
@@ -2322,9 +2291,8 @@ async function writeData(data) {
         _cloudBusy=false; cloudBtnBusy(false);
       }
     }
-    // 页面加载时自动同步：仅解锁状态且云端比本地新时才应用，避免覆盖本地新数据
-    // 未解锁（别人打开网址）时不同步、不显示任何数据
-    window.addEventListener('load', function(){ if(isUnlocked()) loadFromCloud(true); });
+    // 注意：打开页面时不自动从云端拉数据——分享网址给别人时，别人看到的是空工作台。
+    // 你自己换设备时，手动点「📥 从云端加载」即可取回数据（免token）。
     // 暴露到全局供按钮调用（直接暴露原函数，切勿用包装函数覆盖同名声明，否则会无限递归）
     window.saveToCloud = saveToCloud;
     window.loadFromCloud = loadFromCloud;
@@ -2345,69 +2313,5 @@ async function writeData(data) {
   <button id="btnCloudSave" onclick="saveToCloud()">💾 保存到云端</button>
   <button id="btnCloudLoad" onclick="loadFromCloud()">📥 从云端加载</button>
 </div>
-<style>
-  /* 访问锁：未解锁时全屏遮挡，不显示任何数据 */
-  .lock-mask{
-    position:fixed;inset:0;z-index:9999;
-    background:linear-gradient(160deg,#f0fdfa 0%,#fff 55%,#ecfeff 100%);
-    display:flex;align-items:center;justify-content:center;
-  }
-  .lock-box{
-    background:#fff;border:1px solid #99f6e4;border-radius:16px;
-    box-shadow:0 10px 40px rgba(15,118,110,.15);
-    padding:36px 32px;text-align:center;width:min(88vw,340px);
-  }
-  .lock-box .lock-ico{font-size:34px;margin-bottom:10px}
-  .lock-box h2{font-size:16px;color:#134e4a;margin:0 0 6px}
-  .lock-box p{font-size:12.5px;color:#64748b;margin:0 0 18px}
-  .lock-box input{
-    width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:10px;
-    padding:10px 12px;font-size:14px;text-align:center;letter-spacing:2px;outline:none;
-  }
-  .lock-box input:focus{border-color:#14b8a6;box-shadow:0 0 0 3px rgba(20,184,166,.15)}
-  .lock-box button{
-    margin-top:14px;width:100%;background:#14b8a6;color:#fff;border:none;border-radius:10px;
-    padding:10px;font-size:14px;font-weight:600;cursor:pointer;
-  }
-  .lock-box button:hover{background:#0d9488}
-  .lock-err{display:none;margin-top:10px;font-size:12px;color:#dc2626}
-</style>
-<div class="lock-mask" id="lockMask" style="display:none">
-  <div class="lock-box">
-    <div class="lock-ico">🔒</div>
-    <h2>私人办公工作台</h2>
-    <p>内容已加密保护，请输入访问密码查看</p>
-    <input type="password" id="lockInput" placeholder="访问密码" autocomplete="off" />
-    <button onclick="tryUnlock()">解 锁</button>
-    <div class="lock-err" id="lockErr">密码不正确，请重试</div>
-  </div>
-</div>
-<script>
-  /* ===================== 访问锁 =====================
-     密码：910304（修改密码：改下面 fromCharCode 里的数字，即字符编码）
-     未解锁状态：不渲染数据入口、不发起任何云端请求，别人打开网址看不到内容 */
-  var LOCK_CODE = String.fromCharCode(57,49,48,51,48,52); // '910304'
-  function isUnlocked(){
-    try{ return localStorage.getItem('ws_unlocked')==='1'; }catch(e){ return false; }
-  }
-  function tryUnlock(){
-    var v = (document.getElementById('lockInput').value||'').trim();
-    if(v === LOCK_CODE){
-      try{ localStorage.setItem('ws_unlocked','1'); }catch(e){}
-      document.getElementById('lockMask').style.display='none';
-      toast('已解锁','ok');
-    }else{
-      document.getElementById('lockErr').style.display='block';
-    }
-  }
-  (function(){
-    if(!isUnlocked()){
-      document.getElementById('lockMask').style.display='flex';
-      var inp = document.getElementById('lockInput');
-      inp.addEventListener('keydown', function(e){ if(e.key==='Enter') tryUnlock(); });
-      setTimeout(function(){ inp.focus(); }, 100);
-    }
-  })();
-</script>
 </body>
 </html>
