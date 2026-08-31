@@ -344,7 +344,6 @@
   }
 </style>
 </head>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <body>
 
 <header class="app-header">
@@ -404,7 +403,7 @@
       <span class="save-dot"></span><span id="saveStatus">已自动保存</span><br/>
       <span id="storageLoc">存储：浏览器内存</span><br/>
       共 <b id="cntTotal">0</b> 条 · 建议 20 条导出一次<br/>
-      <span style="opacity:.8">版本 V0828-33 · 多次选择文件并列累加不替换</span>
+      <span style="opacity:.8">版本 V0831-01 · 云端同步修复（GitHub data.json）</span>
     </div>
   </nav>
 
@@ -2122,28 +2121,36 @@ window.addEventListener('beforeunload', function(){ save(true); });
     // ============================================================
     //  1. 配置区
     // ============================================================
-    // ⚠️ 重要：将下面的 "你的_个人访问令牌" 替换成你的真实令牌
-    const GITHUB_TOKEN = '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';
+    // Token 不硬编码在文件里（GitHub 密钥扫描会拦截含明文 token 的文件入库）。
+    // 首次点击云端按钮时提示输入，保存在浏览器 localStorage，之后自动读取。
     const GITHUB_OWNER = 'Tina2324';
     const GITHUB_REPO = 'my-workspace-data';
     const FILE_PATH = 'data.json';
+    function getGithubToken(){
+      var t = '';
+      try{ t = localStorage.getItem('gh_token') || ''; }catch(e){}
+      if(t) return t;
+      t = (prompt('首次使用云端同步，请粘贴你的 GitHub Token（ghp_ 开头）：') || '').trim();
+      if(!t) return '';
+      try{ localStorage.setItem('gh_token', t); }catch(e){}
+      return t;
+    }
 
     // ============================================================
-    //  2. 数据变量（⚠️ 请改成你页面实际使用的变量名）
+    //  2. 数据变量
     // ============================================================
-    // 如果页面中已经定义了数据变量，把下面这行改成你的变量名
-    let state = { tasks: [], notes: [] };
-    renderA11();
-    renderA11();
+    // 直接使用页面主体已定义的 var state（L754: todos/notes/projects/materials/study/works/meta）
+    // 注意：此处绝不能重新声明 state，否则整个 script 块会因重复声明而失效
 
         // ============================================================
 //  3. 读取数据函数：从 GitHub 仓库读取 data.json
 // ============================================================
 async function readData() {
     try {
-        // 如果令牌不存在，直接返回 null
-        if (!GITHUB_TOKEN || GITHUB_TOKEN === '你的_个人访问令牌') {
-            console.warn('⚠️ 请先设置 GitHub 令牌');
+        // 获取令牌（首次会提示输入），不存在则返回 null
+        var GITHUB_TOKEN = getGithubToken();
+        if (!GITHUB_TOKEN) {
+            console.warn('⚠️ 未提供 GitHub 令牌');
             return null;
         }
         // 构造 API URL
@@ -2182,9 +2189,10 @@ async function readData() {
 // ============================================================
 async function writeData(data) {
     try {
-        // 如果令牌不存在，直接返回 false
-        if (!GITHUB_TOKEN || GITHUB_TOKEN === '你的_个人访问令牌') {
-            console.warn('⚠️ 请先设置 GitHub 令牌');
+        // 获取令牌（首次会提示输入），不存在则返回 false
+        var GITHUB_TOKEN = getGithubToken();
+        if (!GITHUB_TOKEN) {
+            console.warn('⚠️ 未提供 GitHub 令牌');
             return false;
         }
         const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
@@ -2243,97 +2251,98 @@ async function writeData(data) {
 }
   
     // ============================================================
-    //  3. GitHub API 操作函数（不要修改）
+    //  5. 同步函数（按钮调用 / 页面加载自动同步）
     // ============================================================
-    async function readData() {
-        try {
-            const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
-            const response = await axios.get(url, {
-                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-            });
-            const content = atob(response.data.content);
-            return JSON.parse(content);
-        } catch (error) {
-            if (error.response && error.response.status === 404) {
-                return null;
-            }
-            throw error;
+    var _cloudBusy = false;
+    function cloudBtnBusy(busy){
+      var b1=document.getElementById('btnCloudSave'), b2=document.getElementById('btnCloudLoad');
+      if(b1){ b1.disabled=busy; b1.textContent = busy?'⏳ 同步中…':'💾 保存到云端'; }
+      if(b2){ b2.disabled=busy; b2.textContent = busy?'⏳ 同步中…':'📥 从云端加载'; }
+    }
+    function mergeCloudDefaults(d){
+      if(!d || typeof d!=='object') return d;
+      if(!d.todos) d.todos=[]; if(!d.notes) d.notes=[]; if(!d.projects) d.projects=[];
+      if(!d.materials) d.materials=[]; if(!d.study) d.study=[]; if(!d.works) d.works=[];
+      if(!d.meta) d.meta={}; if(!d.meta.tags) d.meta.tags={note:[],material:[]};
+      return d;
+    }
+    async function saveToCloud(){
+      if(_cloudBusy) return;
+      _cloudBusy=true; cloudBtnBusy(true);
+      try{
+        if(!state || typeof state!=='object') throw new Error('工作台数据未就绪');
+        state.meta = state.meta || {};
+        state.meta.cloudSavedAt = new Date().toISOString();
+        var ok = await writeData(state);
+        if(ok===false) throw new Error('写入未完成，请检查令牌与网络');
+        toast('已保存到云端（GitHub）','ok');
+        console.log('✅ 保存到云端成功');
+      }catch(error){
+        console.error('❌ 保存到云端失败:', error.message);
+        toast('云端保存失败：'+error.message,'err');
+      }finally{
+        _cloudBusy=false; cloudBtnBusy(false);
+      }
+    }
+    async function loadFromCloud(silent){
+      if(_cloudBusy) return Promise.resolve(null);
+      _cloudBusy=true; cloudBtnBusy(true);
+      try{
+        var data = await readData();
+        if(!data){
+          if(!silent) toast('云端暂无数据（或读取失败，详见控制台）','err');
+          return null;
         }
-    }
-
-    async function writeData(data) {
-        let sha = null;
-        try {
-            const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
-            const response = await axios.get(url, {
-                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-            });
-            sha = response.data.sha;
-        } catch (e) {}
-
-        const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
-        const content = btoa(JSON.stringify(data, null, 2));
-        const payload = {
-            message: `更新数据 - ${new Date().toLocaleString()}`,
-            content: content,
-            sha: sha || undefined
-        };
-        await axios.put(url, payload, {
-            headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-        });
-    }
-
-    // ============================================================
-    //  4. 同步函数（页面加载和保存时调用）
-    // ============================================================
-    async function loadFromCloud() {
-        try {
-            const data = await readData();
-            if (data) {
-                workspaceData = data;
-                console.log('✅ 从云端加载成功', workspaceData);
-                // ⚠️ 在下面调用你页面的渲染函数
-                // 例如：renderTasks();
-                return workspaceData;
-            } else {
-                console.log('📝 云端暂无数据');
-                return null;
-            }
-        } catch (error) {
-            console.error('❌ 加载失败:', error.message);
+        mergeCloudDefaults(data);
+        // 数据校验：只有工作台自己保存的数据（带 cloudSavedAt 时间戳）才允许应用，
+        // 防止云端残留的旧教程数据/垃圾数据在页面加载时覆盖本地真实数据
+        if(!(data.meta && data.meta.cloudSavedAt)){
+          if(!silent) toast('云端数据不是本工作台保存的，未应用','err');
+          console.log('⏭️ 云端数据缺少 cloudSavedAt，跳过应用');
+          return null;
         }
-    }
-
-    async function saveToCloud() {
-        try {
-            await writeData(workspaceData);
-            console.log('✅ 保存到云端成功');
-            return true;
-        } catch (error) {
-            console.error('❌ 保存失败:', error.message);
-            return false;
+        var cloudAt = (data.meta && data.meta.cloudSavedAt)||'';
+        var localAt = (state && state.meta && state.meta.cloudSavedAt)||'';
+        if(cloudAt && localAt && cloudAt < localAt){
+          if(!silent) toast('云端数据比本地旧，未覆盖本地','err');
+          console.log('⏭️ 云端较旧，跳过覆盖', {cloudAt:cloudAt, localAt:localAt});
+          return null;
         }
+        state = data;
+        save(true);
+        renderAll();
+        if(!silent) toast('已从云端加载并应用','ok');
+        console.log('✅ 从云端加载成功', state);
+        return state;
+      }catch(error){
+        console.error('❌ 从云端加载失败:', error.message);
+        if(!silent) toast('云端加载失败：'+error.message,'err');
+        return null;
+      }finally{
+        _cloudBusy=false; cloudBtnBusy(false);
+      }
     }
-
-    // ============================================================
-    //  5. 页面加载时自动从云端读取
-    // ============================================================
-    window.addEventListener('load', function() {
-        loadFromCloud().then(data => {
-            if (data) {
-                // 数据加载成功，更新页面
-                // ⚠️ 在这里调用你页面的渲染函数
-                // 例如：renderTasks();
-            }
-        });
-    });
-
-    // 暴露函数到全局，方便按钮调用
-    window.loadFromCloud = loadFromCloud;
+    // 页面加载时自动同步：仅当云端比本地新时才应用，避免覆盖本地新数据
+    window.addEventListener('load', function(){ loadFromCloud(true); });
+    // 暴露到全局供按钮调用
     window.saveToCloud = saveToCloud;
-    window.workspaceData = workspaceData;
+    window.loadFromCloud = function(){ return loadFromCloud(false); };
 </script>
-<button onclick="saveToCloud()">💾 保存到云端</button>
-<button onclick="loadFromCloud()">📥 从云端加载</button>
+<style>
+  .cloud-bar{position:fixed;left:12px;bottom:12px;display:flex;gap:8px;z-index:60}
+  .cloud-bar button{
+    display:inline-flex;align-items:center;gap:6px;
+    background:#fff;color:#0f766e;border:1px solid #99f6e4;
+    border-radius:10px;padding:8px 14px;font-size:12.5px;font-weight:600;
+    cursor:pointer;box-shadow:0 2px 8px rgba(15,118,110,.12);
+    transition:all .15s;
+  }
+  .cloud-bar button:hover{background:#f0fdfa;border-color:#14b8a6}
+  .cloud-bar button:disabled{opacity:.55;cursor:not-allowed}
+</style>
+<div class="cloud-bar">
+  <button id="btnCloudSave" onclick="saveToCloud()">💾 保存到云端</button>
+  <button id="btnCloudLoad" onclick="loadFromCloud()">📥 从云端加载</button>
+</div>
 </body>
 </html>
