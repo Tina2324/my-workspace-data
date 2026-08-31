@@ -362,7 +362,7 @@
       <button class="btn" id="btnStorage" title="选择 F 盘等本地磁盘作为存储位置，容量不受浏览器限制">📁 存储位置</button>
       <button class="btn" id="btnExport" title="导出全部数据为 JSON 备份">⬇ 导出备份</button>
       <button class="btn ghost" id="btnImport" title="从 JSON 备份导入">⬆ 导入</button>
-      <button class="btn danger" id="btnClearSamples" title="移除内置示例内容">清空示例</button>
+      <button class="btn" id="btnLogin" onclick="doLogin()" title="输入访问密码，登录后自动同步云端数据">登录</button>
       <input type="file" id="importFile" accept="application/json,.json" hidden />
     </div>
   </div>
@@ -402,7 +402,7 @@
       <span class="save-dot"></span><span id="saveStatus">已自动保存</span><br/>
       <span id="storageLoc">存储：浏览器内存</span><br/>
       共 <b id="cntTotal">0</b> 条 · 建议 20 条导出一次<br/>
-      <span style="opacity:.8">版本 V0831-05 · 品牌名更新</span>
+      <span style="opacity:.8">版本 V0831-06 · 云端按钮入存储面板 · 登录制</span>
     </div>
   </nav>
 
@@ -672,6 +672,14 @@
     </div>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn solid" style="flex:1" onclick="closeStorageModal()">完成</button>
+    </div>
+    <div class="cloud-zone" style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)">
+      <div style="font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:2px">☁️ 云端同步（GitHub）</div>
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">数据保存到 GitHub 私有数据仓，换设备时点「从云端加载」取回（免token）。</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn solid" style="flex:1" id="btnCloudSave" onclick="saveToCloud()">💾 保存到云端</button>
+        <button class="btn" style="flex:1" id="btnCloudLoad" onclick="loadFromCloud()">📥 从云端加载</button>
+      </div>
     </div>
     <p style="margin-top:14px;font-size:11.5px;color:var(--muted)">提示：切到磁盘后首次需手动选文件夹授权；之后重新打开页面会自动恢复（个别浏览器需再点一次"允许"）。</p>
   </div>
@@ -2003,22 +2011,7 @@ document.getElementById('importFile').addEventListener('change', function(e){
   e.target.value='';
 });
 
-/* 清空示例：仅移除 isSample 项 */
-document.getElementById('btnClearSamples').addEventListener('click', function(){
-  var before = totalCount();
-  state.todos = state.todos.filter(function(x){return !x.isSample;});
-  state.notes = state.notes.filter(function(x){return !x.isSample;});
-  state.projects = state.projects.filter(function(x){return !x.isSample;});
-  state.materials = state.materials.filter(function(x){return !x.isSample;});
-  // 清掉指向已删项目的关联
-  var pids = state.projects.map(function(p){return p.id;});
-  state.todos.forEach(function(t){ if(t.projectId && pids.indexOf(t.projectId)<0) t.projectId=null; });
-  state.materials.forEach(function(m){ if(m.projectId && pids.indexOf(m.projectId)<0) m.projectId=null; });
-  var after = totalCount();
-  commit();
-  if(before===after) toast('没有示例内容可清空','err');
-  else toast('已清空 '+(before-after)+' 条示例，可开始正式使用','ok');
-});
+/* 「清空示例」功能已移除（按钮替换为「登录」） */
 
 /* ===================== 20 条提醒 ===================== */
 function totalCount(){ return state.todos.length + state.notes.length + state.projects.length + state.materials.length + state.study.length + state.works.length; }
@@ -2291,26 +2284,42 @@ async function writeData(data) {
       }
     }
     // 注意：打开页面时不自动从云端拉数据——分享网址给别人时，别人看到的是空工作台。
-    // 你自己换设备时，手动点「📥 从云端加载」即可取回数据（免token）。
+    // 自己换设备时点右上角「登录」，验证通过后自动同步云端数据。
     // 暴露到全局供按钮调用（直接暴露原函数，切勿用包装函数覆盖同名声明，否则会无限递归）
     window.saveToCloud = saveToCloud;
     window.loadFromCloud = loadFromCloud;
+
+    // ===================== 登录 =====================
+    // 访问密码：910304（修改密码：改下面 fromCharCode 里的数字，即字符编码）
+    var LOGIN_CODE = String.fromCharCode(57,49,48,51,48,52); // '910304'
+    function isLogged(){
+      try{ return localStorage.getItem('ws_login')==='1'; }catch(e){ return false; }
+    }
+    function setLoginBtn(){
+      var b = document.getElementById('btnLogin');
+      if(b){ b.textContent = isLogged() ? '已登录' : '登录'; }
+    }
+    async function doLogin(){
+      if(isLogged()){
+        if(confirm('已处于登录状态。要退出登录吗？\n（退出后刷新页面将回到空工作台，云端数据不受影响）')){
+          try{ localStorage.removeItem('ws_login'); }catch(e){}
+          setLoginBtn();
+          toast('已退出登录','ok');
+          setTimeout(function(){ location.reload(); }, 600);
+        }
+        return;
+      }
+      var v = (prompt('请输入访问密码：')||'').trim();
+      if(!v) return;
+      if(v !== LOGIN_CODE){ toast('密码不正确','err'); return; }
+      try{ localStorage.setItem('ws_login','1'); }catch(e){}
+      setLoginBtn();
+      toast('登录成功，正在同步云端数据…','ok');
+      await loadFromCloud();
+    }
+    window.doLogin = doLogin;
+    // 页面加载时同步按钮状态
+    document.addEventListener('DOMContentLoaded', setLoginBtn);
 </script>
-<style>
-  .cloud-bar{position:fixed;left:12px;bottom:12px;display:flex;gap:8px;z-index:60}
-  .cloud-bar button{
-    display:inline-flex;align-items:center;gap:6px;
-    background:#fff;color:#0f766e;border:1px solid #99f6e4;
-    border-radius:10px;padding:8px 14px;font-size:12.5px;font-weight:600;
-    cursor:pointer;box-shadow:0 2px 8px rgba(15,118,110,.12);
-    transition:all .15s;
-  }
-  .cloud-bar button:hover{background:#f0fdfa;border-color:#14b8a6}
-  .cloud-bar button:disabled{opacity:.55;cursor:not-allowed}
-</style>
-<div class="cloud-bar">
-  <button id="btnCloudSave" onclick="saveToCloud()">💾 保存到云端</button>
-  <button id="btnCloudLoad" onclick="loadFromCloud()">📥 从云端加载</button>
-</div>
 </body>
 </html>
