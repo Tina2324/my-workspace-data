@@ -367,7 +367,6 @@
       <input type="file" id="importFile" accept="application/json,.json" hidden />
     </div>
   </div>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </header>
 
 <!-- 顶部「今天要处理的」告警区 -->
@@ -2118,111 +2117,5 @@ document.getElementById('noteContent').addEventListener('keydown', function(e){ 
 /* 页面失焦时兜底保存 */
 window.addEventListener('beforeunload', function(){ save(true); });
 </script>
-<script>
-    // ============================================================
-    //  1. 配置区（⚠️ 请替换成你自己的信息）
-    // ============================================================
-    const GITHUB_TOKEN = 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
-    const GITHUB_OWNER =Tina2324
-    const GITHUB_REPO = 'my-workspace-data';
-    const FILE_PATH = 'data.json';
-
-    // ============================================================
-    //  2. GitHub API 操作函数
-    // ============================================================
-    async function readData() {
-        try {
-            const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
-            const response = await axios.get(url, {
-                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-            });
-            const content = atob(response.data.content);
-            return JSON.parse(content);
-        } catch (error) {
-            if (error.response && error.response.status === 404) {
-                return null; // 文件不存在
-            }
-            throw error;
-        }
-    }
-
-    async function writeData(data) {
-        // 先获取当前文件的 SHA（更新时需要）
-        let sha = null;
-        try {
-            const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
-            const response = await axios.get(url, {
-                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-            });
-            sha = response.data.sha;
-        } catch (e) {}
-
-        const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
-        const content = btoa(JSON.stringify(data, null, 2));
-        const payload = {
-            message: `更新数据 - ${new Date().toLocaleString()}`,
-            content: content,
-            sha: sha || undefined
-        };
-        await axios.put(url, payload, {
-            headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-        });
-    }
-
-    // ============================================================
-    //  3. 你的数据变量（请根据你的实际情况修改）
-    // ============================================================
-    let workspaceData = { tasks: [], notes: [] };
-
-    // ============================================================
-    //  4. 加载和保存函数（在你的页面中调用）
-    // ============================================================
-    async function loadFromCloud() {
-        try {
-            const data = await readData();
-            if (data) {
-                workspaceData = data;
-                console.log('✅ 从云端加载成功', workspaceData);
-                // ⚠️ 在这里调用你页面的渲染函数，把数据显示出来
-                // 例如：renderTasks();
-                return workspaceData;
-            } else {
-                console.log('📝 云端暂无数据');
-                return null;
-            }
-        } catch (error) {
-            console.error('❌ 加载失败:', error.message);
-        }
-    }
-
-    async function saveToCloud() {
-        try {
-            await writeData(workspaceData);
-            console.log('✅ 保存到云端成功');
-        } catch (error) {
-            console.error('❌ 保存失败:', error.message);
-        }
-    }
-
-    // ============================================================
-    //  5. 页面加载时自动从云端读取数据
-    // ============================================================
-    window.onload = function() {
-        loadFromCloud().then(data => {
-            if (data) {
-                // 数据加载成功，更新页面
-                // ⚠️ 在这里调用你页面的渲染函数
-                // 例如：renderTasks();
-            }
-        });
-    };
-
-    // 把函数暴露到全局，方便在 HTML 的 onclick 中调用
-    window.loadFromCloud = loadFromCloud;
-    window.saveToCloud = saveToCloud;
-    window.workspaceData = workspaceData;
-</script>
 </body>
-<button onclick="saveToCloud()">💾 保存到云端</button>
-<button onclick="loadFromCloud()">📥 从云端加载</button>
 </html>
