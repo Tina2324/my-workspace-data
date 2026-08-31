@@ -2120,15 +2120,24 @@ window.addEventListener('beforeunload', function(){ save(true); });
 </script>
 <script>
     // ============================================================
-    //  1. 配置区（⚠️ 请替换成你自己的信息）
+    //  1. 配置区
     // ============================================================
-    const GITHUB_TOKEN = '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';   // 替换成你的令牌
-    const GITHUB_OWNER = 'Tina2324';  // 替换成你的用户名
+    // ⚠️ 重要：将下面的 "你的_个人访问令牌" 替换成你的真实令牌
+    const GITHUB_TOKEN = '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';
+    const GITHUB_OWNER = 'Tina2324';
     const GITHUB_REPO = 'my-workspace-data';
     const FILE_PATH = 'data.json';
 
     // ============================================================
-    //  2. GitHub API 操作函数
+    //  2. 数据变量（⚠️ 请改成你页面实际使用的变量名）
+    // ============================================================
+    // 如果页面中已经定义了数据变量，把下面这行改成你的变量名
+    let state = { tasks: [], notes: [] };
+    renderA11();
+    renderA11();
+
+    // ============================================================
+    //  3. GitHub API 操作函数（不要修改）
     // ============================================================
     async function readData() {
         try {
@@ -2140,14 +2149,13 @@ window.addEventListener('beforeunload', function(){ save(true); });
             return JSON.parse(content);
         } catch (error) {
             if (error.response && error.response.status === 404) {
-                return null; // 文件不存在
+                return null;
             }
             throw error;
         }
     }
 
     async function writeData(data) {
-        // 先获取当前文件的 SHA（更新时需要）
         let sha = null;
         try {
             const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
@@ -2170,12 +2178,7 @@ window.addEventListener('beforeunload', function(){ save(true); });
     }
 
     // ============================================================
-    //  3. 你的数据变量（请根据你的实际情况修改）
-    // ============================================================
-    let workspaceData = { tasks: [], notes: [] };
-
-    // ============================================================
-    //  4. 加载和保存函数（在你的页面中调用）
+    //  4. 同步函数（页面加载和保存时调用）
     // ============================================================
     async function loadFromCloud() {
         try {
@@ -2183,7 +2186,7 @@ window.addEventListener('beforeunload', function(){ save(true); });
             if (data) {
                 workspaceData = data;
                 console.log('✅ 从云端加载成功', workspaceData);
-                // ⚠️ 在这里调用你页面的渲染函数，把数据显示出来
+                // ⚠️ 在下面调用你页面的渲染函数
                 // 例如：renderTasks();
                 return workspaceData;
             } else {
@@ -2199,15 +2202,17 @@ window.addEventListener('beforeunload', function(){ save(true); });
         try {
             await writeData(workspaceData);
             console.log('✅ 保存到云端成功');
+            return true;
         } catch (error) {
             console.error('❌ 保存失败:', error.message);
+            return false;
         }
     }
 
     // ============================================================
-    //  5. 页面加载时自动从云端读取数据
+    //  5. 页面加载时自动从云端读取
     // ============================================================
-    window.onload = function() {
+    window.addEventListener('load', function() {
         loadFromCloud().then(data => {
             if (data) {
                 // 数据加载成功，更新页面
@@ -2215,9 +2220,9 @@ window.addEventListener('beforeunload', function(){ save(true); });
                 // 例如：renderTasks();
             }
         });
-    };
+    });
 
-    // 把函数暴露到全局，方便在 HTML 的 onclick 中调用
+    // 暴露函数到全局，方便按钮调用
     window.loadFromCloud = loadFromCloud;
     window.saveToCloud = saveToCloud;
     window.workspaceData = workspaceData;
