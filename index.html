@@ -2324,9 +2324,9 @@ async function writeData(data) {
     }
     // 页面加载时自动同步：仅当云端比本地新时才应用，避免覆盖本地新数据
     window.addEventListener('load', function(){ loadFromCloud(true); });
-    // 暴露到全局供按钮调用
+    // 暴露到全局供按钮调用（直接暴露原函数，切勿用包装函数覆盖同名声明，否则会无限递归）
     window.saveToCloud = saveToCloud;
-    window.loadFromCloud = function(){ return loadFromCloud(false); };
+    window.loadFromCloud = loadFromCloud;
 </script>
 <style>
   .cloud-bar{position:fixed;left:12px;bottom:12px;display:flex;gap:8px;z-index:60}
