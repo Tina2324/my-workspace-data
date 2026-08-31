@@ -403,7 +403,7 @@
       <span class="save-dot"></span><span id="saveStatus">已自动保存</span><br/>
       <span id="storageLoc">存储：浏览器内存</span><br/>
       共 <b id="cntTotal">0</b> 条 · 建议 20 条导出一次<br/>
-      <span style="opacity:.8">版本 V0831-01 · 云端同步修复（GitHub data.json）</span>
+      <span style="opacity:.8">版本 V0831-02 · 云端加载免token · 保存仅需首次输入</span>
     </div>
   </nav>
 
@@ -2130,7 +2130,7 @@ window.addEventListener('beforeunload', function(){ save(true); });
       var t = '';
       try{ t = localStorage.getItem('gh_token') || ''; }catch(e){}
       if(t) return t;
-      t = (prompt('首次使用云端同步，请粘贴你的 GitHub Token（ghp_ 开头）：') || '').trim();
+      t = (prompt('「保存到云端」需要 GitHub Token（仅需输入一次，之后存在本浏览器）。\n请粘贴你的 Token（ghp_ 开头）：') || '').trim();
       if(!t) return '';
       try{ localStorage.setItem('gh_token', t); }catch(e){}
       return t;
@@ -2146,21 +2146,12 @@ window.addEventListener('beforeunload', function(){ save(true); });
 //  3. 读取数据函数：从 GitHub 仓库读取 data.json
 // ============================================================
 async function readData() {
+    // 公开仓库匿名读取，无需 token（换设备/浏览器免输入）
     try {
-        // 获取令牌（首次会提示输入），不存在则返回 null
-        var GITHUB_TOKEN = getGithubToken();
-        if (!GITHUB_TOKEN) {
-            console.warn('⚠️ 未提供 GitHub 令牌');
-            return null;
-        }
-        // 构造 API URL
+        // 构造 API URL（匿名请求限流 60 次/小时，个人使用足够）
         const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
-        // 发送 GET 请求
         const response = await fetch(url, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
+            headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
         // 如果文件不存在（404），返回 null
         if (response.status === 404) {
@@ -2179,8 +2170,17 @@ async function readData() {
         // 解析 JSON
         return JSON.parse(content);
     } catch (error) {
-        console.error('❌ 读取数据失败:', error.message);
-        return null;
+        // 降级：raw 直读（不受 API 限流影响，仅有几分钟 CDN 缓存延迟）
+        console.error('❌ API 匿名读取失败，改用 raw 方式:', error.message);
+        try {
+            const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${FILE_PATH}`;
+            const r2 = await fetch(rawUrl, { cache: 'no-store' });
+            if (!r2.ok) throw new Error(`raw 读取失败：HTTP ${r2.status}`);
+            return JSON.parse(await r2.text());
+        } catch (e2) {
+            console.error('❌ raw 读取也失败:', e2.message);
+            return null;
+        }
     }
 }
 
