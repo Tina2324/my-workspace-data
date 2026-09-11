@@ -20,7 +20,7 @@
     {
       "id": "mtcozjw3w11wl",
       "title": "10ml滚珠瓶金/黑盖",
-      "progress": "未开始",
+      "progress": "摄影拍摄中",
       "deadline": "2026-09-26",
       "startDate": "",
       "done": false,
@@ -72,21 +72,6 @@
       "projectId": null,
       "deferCount": 0,
       "createdAt": 1788855905516,
-      "note": "",
-      "reqText": "",
-      "reqFiles": []
-    },
-    {
-      "id": "mtshykz9t0dx0",
-      "title": "喷雾瓶4件套包装设计",
-      "progress": "未开始",
-      "deadline": "2026-09-11",
-      "startDate": "2026-09-09",
-      "done": false,
-      "completedAt": null,
-      "projectId": null,
-      "deferCount": 0,
-      "createdAt": 1788861517749,
       "note": "",
       "reqText": "",
       "reqFiles": []
@@ -176,7 +161,7 @@
       "note": [],
       "material": []
     },
-    "cloudSavedAt": "2026-09-11T03:34:08.432Z"
+    "cloudSavedAt": "2026-09-11T09:35:20.275Z"
   },
   "study": [
     {
