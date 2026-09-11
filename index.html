@@ -402,7 +402,7 @@
       <span class="save-dot"></span><span id="saveStatus">已自动保存</span><br/>
       <span id="storageLoc">存储：浏览器内存</span><br/>
       共 <b id="cntTotal">0</b> 条 · 建议 20 条导出一次<br/>
-      <span style="opacity:.8">版本 V0911-01 · 知识点速记支持附件</span>
+      <span style="opacity:.8">版本 V0911-02 · 已完成项目按周分组</span>
     </div>
   </nav>
 
@@ -557,7 +557,7 @@
         </div>
         <div id="projList"></div>
         <div style="margin:16px 0 10px;padding-top:14px;border-top:1px dashed var(--line)">
-          <span style="font-size:11.5px;color:var(--muted)">以下任务来自「未完成项目」的勾选完成 / 进程选「已完成」，按完成日期分组</span>
+          <span style="font-size:11.5px;color:var(--muted)">以下任务来自「未完成项目」的勾选完成 / 进程选「已完成」，按完成日期 · 周分组</span>
         </div>
         <div id="doneList"></div>
       </div>
@@ -1626,7 +1626,44 @@ function renderDoneTasks(){
   var html = '';
   if(today.length) html += groupHTML('今日已完成', 'done', today, false);
   if(yest.length) html += groupHTML('昨天完成', 'done', yest, false);
-  if(older.length) html += groupHTML('更早完成', 'done', older, false);
+  /* 更早完成的任务按周分组：同一周（周一~周日）完成的放在一起 */
+  if(older.length){
+    /* 按 completedAt 降序排列 */
+    older.sort(function(a,b){
+      return (b.completedAt||'').localeCompare(a.completedAt||'');
+    });
+    var weeks = [];
+    var curWeek = null;
+    older.forEach(function(x){
+      var dStr = x.completedAt ? x.completedAt.slice(0,10) : '';
+      if(!dStr) return; /* 无日期的跳过 */
+      var d = new Date(dStr+'T00:00:00');
+      /* 计算本周一（周一为一周起始） */
+      var day = d.getDay()||7; /* 周日=7 */
+      var monday = new Date(d);
+      monday.setDate(d.getDate() - (day-1));
+      monday.setHours(0,0,0,0);
+      var sunday = new Date(monday);
+      sunday.setDate(monday.getDate()+6);
+      var wkKey = monday.getFullYear()+'-'+String(monday.getMonth()+1).padStart(2,'0')+'-'+String(monday.getDate()).padStart(2,'0');
+      if(!curWeek || curWeek.key !== wkKey){
+        curWeek = {
+          key: wkKey,
+          monday: monday,
+          sunday: sunday,
+          items: []
+        };
+        weeks.push(curWeek);
+      }
+      curWeek.items.push(x);
+    });
+    weeks.forEach(function(wk){
+      var m = wk.monday, s = wk.sunday;
+      var fmt = function(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); };
+      var label = fmt(m)+' ~ '+fmt(s);
+      html += groupHTML(label, 'done', wk.items, false);
+    });
+  }
   el.innerHTML = html;
 }
 
