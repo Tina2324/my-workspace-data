@@ -402,7 +402,7 @@
       <span class="save-dot"></span><span id="saveStatus">已自动保存</span><br/>
       <span id="storageLoc">存储：浏览器内存</span><br/>
       共 <b id="cntTotal">0</b> 条 · 建议 20 条导出一次<br/>
-      <span style="opacity:.8">版本 V0831-07 · 登录面板（GitHub/Google）</span>
+      <span style="opacity:.8">版本 V0911-01 · 知识点速记支持附件</span>
     </div>
   </nav>
 
@@ -492,6 +492,11 @@
         <div class="field" style="margin-bottom:10px">
           <label>随手记想法</label>
           <textarea id="noteContent" placeholder="闪念、灵感、待查资料……随便写"></textarea>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label>添加附件（图片 / 表格 / 文件夹，可多选）</label>
+          <input type="file" id="noteFiles" accept="image/*,.csv,.xls,.xlsx,.pdf,.tsv,.txt,.md,.doc,.docx,.ppt,.pptx" multiple onchange="appendNoteFiles(this)" />
+          <div id="notePendingFiles" style="margin-top:6px"></div>
         </div>
         <div class="row">
           <div class="field" style="flex:2">
@@ -1163,15 +1168,16 @@ function renderReq(text){
     return '<div class="req-line">'+html+'</div>';
   }).join('');
 }
-function renderReqFiles(files){
+function renderReqFiles(files, src, ownerId){
   if(!files || !files.length) return '';
   var imgs = files.filter(function(f){return f.kind==='image';});
   var docs = files.filter(function(f){return f.kind!=='image';});
+  var delFn = (src==='note') ? 'deleteNoteFile' : 'deleteReqFile';
   var html = '';
-  if(imgs.length) html += '<div class="req-imgs">'+imgs.map(function(f){ return '<span class="req-img-wrap" onclick="viewReqFile(\''+f.id+'\')" title="点击查看大图"><img class="req-img" src="'+esc(f.dataUrl)+'" alt="'+esc(f.name)+'" loading="lazy" /><span class="req-del" onclick="event.stopPropagation();deleteReqFile(\''+f.id+'\')" title="删除">×</span></span>'; }).join('')+'</div>';
+  if(imgs.length) html += '<div class="req-imgs">'+imgs.map(function(f){ return '<span class="req-img-wrap" onclick="viewReqFile(\''+f.id+'\')" title="点击查看大图"><img class="req-img" src="'+esc(f.dataUrl)+'" alt="'+esc(f.name)+'" loading="lazy" /><span class="req-del" onclick="event.stopPropagation();'+delFn+'(\''+f.id+'\')" title="删除">×</span></span>'; }).join('')+'</div>';
   if(docs.length) html += '<div class="req-files">'+docs.map(function(f){
     var ico = fileIcon(f.name);
-    return '<span class="req-file" onclick="viewReqFile(\''+f.id+'\')" title="点击打开预览"><span class="rf-ico">'+ico+'</span><span class="rf-name">'+esc(f.name)+'</span><span class="rf-size">'+fmtSize(f.size)+'</span><span class="req-del" onclick="event.stopPropagation();deleteReqFile(\''+f.id+'\')" title="删除">×</span></span>';
+    return '<span class="req-file" onclick="viewReqFile(\''+f.id+'\')" title="点击打开预览"><span class="rf-ico">'+ico+'</span><span class="rf-name">'+esc(f.name)+'</span><span class="rf-size">'+fmtSize(f.size)+'</span><span class="req-del" onclick="event.stopPropagation();'+delFn+'(\''+f.id+'\')" title="删除">×</span></span>';
   }).join('')+'</div>';
   return html;
 }
@@ -1188,6 +1194,10 @@ function findReqFile(fid){
   for(var i=0;i<state.todos.length;i++){
     var fs = state.todos[i].reqFiles||[];
     for(var j=0;j<fs.length;j++){ if(fs[j].id===fid) return fs[j]; }
+  }
+  for(var i2=0;i2<(state.notes||[]).length;i2++){
+    var nfs = state.notes[i2].files||[];
+    for(var j2=0;j2<nfs.length;j2++){ if(nfs[j2].id===fid) return nfs[j2]; }
   }
   for(var i2=0;i2<(state.works||[]).length;i2++){
     var w = state.works[i2];
@@ -1424,15 +1434,80 @@ function todoHTML(t, forceOverdue){
 
 /* ===================== 知识点速记 ===================== */
 var noteTagFilter = '';
+var _noteFilePool = [];
+function appendNoteFiles(input){
+  var newFiles = input.files || [];
+  for(var i=0;i<newFiles.length;i++){ _noteFilePool.push(newFiles[i]); }
+  input.value = '';
+  renderNotePendingFiles();
+}
+function renderNotePendingFiles(){
+  var box = document.getElementById('notePendingFiles');
+  if(!box) return;
+  var files = _noteFilePool;
+  if(!files.length){ box.innerHTML=''; return; }
+  if(window._noteImgUrls){ window._noteImgUrls.forEach(function(u){ try{URL.revokeObjectURL(u);}catch(e){} }); }
+  window._noteImgUrls = [];
+  var imgs = [], docs = [];
+  for(var i=0;i<files.length;i++){
+    var f = files[i];
+    if(f.type && f.type.indexOf('image/')===0){
+      var url = URL.createObjectURL(f);
+      window._noteImgUrls.push(url);
+      imgs.push({f:f, i:i, url:url});
+    } else { docs.push({f:f, i:i}); }
+  }
+  var html = '';
+  if(imgs.length){
+    html += '<div class="req-imgs">';
+    imgs.forEach(function(it){
+      html += '<span class="req-img-wrap pending" data-i="'+it.i+'" title="点击查看大图"><img class="req-img" src="'+it.url+'" alt="'+esc(it.f.name)+'" loading="lazy" /><span class="req-del" onclick="event.stopPropagation();removeNoteFile('+it.i+')" title="移除">×</span></span>';
+    });
+    html += '</div>';
+  }
+  if(docs.length){
+    html += '<div class="req-files">';
+    docs.forEach(function(it){
+      var ico = fileIcon(it.f.name);
+      html += '<span class="req-file pending" data-i="'+it.i+'" title="点击预览"><span class="rf-ico">'+ico+'</span><span class="rf-name">'+esc(it.f.name)+'</span><span class="rf-size">'+fmtSize(it.f.size)+'</span><span class="req-del" onclick="event.stopPropagation();removeNoteFile('+it.i+')" title="移除">×</span></span>';
+    });
+    html += '</div>';
+  }
+  box.innerHTML = html;
+  box.querySelectorAll('.pending').forEach(function(el){
+    el.addEventListener('click', function(){
+      var i = parseInt(el.getAttribute('data-i'),10);
+      previewPendingFile(files[i]);
+    });
+  });
+}
+function removeNoteFile(idx){ _noteFilePool.splice(idx,1); renderNotePendingFiles(); }
 function addNote(){
   var c = document.getElementById('noteContent').value.trim();
-  if(!c){ toast('请输入内容','err'); return; }
+  if(!c && !_noteFilePool.length){ toast('请输入内容或添加附件','err'); return; }
   var tags = parseTags(document.getElementById('noteTags').value);
-  state.notes.push({ id:uid(), content:c, tags:tags, createdAt:Date.now() });
-  document.getElementById('noteContent').value=''; document.getElementById('noteTags').value='';
-  commit(); toast('已记下','ok');
+  var files = _noteFilePool;
+  var readers = [];
+  for(var i=0;i<files.length;i++){
+    var kind = (files[i].type && files[i].type.indexOf('image/')===0) ? 'image' : 'file';
+    readers.push(readFileAsObj(files[i], kind));
+  }
+  Promise.all(readers).then(function(newFiles){
+    if(window._noteImgUrls){ window._noteImgUrls.forEach(function(u){ try{URL.revokeObjectURL(u);}catch(e){} }); window._noteImgUrls=null; }
+    _noteFilePool = [];
+    document.getElementById('noteFiles').value='';
+    document.getElementById('notePendingFiles').innerHTML='';
+    state.notes.push({ id:uid(), content:c, tags:tags, files:newFiles, createdAt:Date.now() });
+    document.getElementById('noteContent').value=''; document.getElementById('noteTags').value='';
+    commit(); toast('已记下','ok');
+  }).catch(function(){ toast('读取附件失败','err'); });
 }
 function deleteNote(id){ state.notes = state.notes.filter(function(n){return n.id!==id;}); commit(); }
+function deleteNoteFile(fid){
+  if(!confirm('删除这个附件？')) return;
+  state.notes.forEach(function(n){ if(n.files) n.files = n.files.filter(function(f){return f.id!==fid;}); });
+  commit(); toast('已删除附件','ok');
+}
 function renderNotes(){
   var tags = {}; state.notes.forEach(function(n){ n.tags.forEach(function(tg){ tags[tg]=(tags[tg]||0)+1; }); });
   var tf = '<span class="lab">标签：</span><span class="ftag'+(noteTagFilter===''?' active':'')+'" onclick="setNoteTag(\'\')">全部</span>';
@@ -1443,7 +1518,8 @@ function renderNotes(){
   if(!list.length){ document.getElementById('noteList').innerHTML = '<div class="empty">还没有记录，随手记一条吧 ✍️</div>'; return; }
   document.getElementById('noteList').innerHTML = list.map(function(n){
     var chips = n.tags.map(function(tg){ return '<span class="chip" onclick="setNoteTag(\''+esc(tg).replace(/'/g,'\\\'')+'\')">'+esc(tg)+'</span>'; }).join('');
-    return '<div class="note"><div class="content">'+esc(n.content)+'</div><div class="ft">'+chips+'<span class="time">'+new Date(n.createdAt).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})+'</span> <button class="icon-btn danger" onclick="deleteNote(\''+n.id+'\')">删除</button></div></div>';
+    var fileHtml = renderReqFiles(n.files||[], 'note', n.id);
+    return '<div class="note"><div class="content">'+esc(n.content)+'</div>'+fileHtml+'<div class="ft">'+chips+'<span class="time">'+new Date(n.createdAt).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})+'</span> <button class="icon-btn danger" onclick="deleteNote(\''+n.id+'\')">删除</button></div></div>';
   }).join('');
 }
 function setNoteTag(t){ noteTagFilter = t; renderNotes(); }
